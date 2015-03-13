@@ -23,7 +23,7 @@ public class Recommendation {
 	//recN 每个user推荐recN个商品
 	public void generateRecommendations(int topN, String sourcepath,String resultpath) {
 		String topNString = sourcepath + "0.5Item_Test_" + topN + "top.base";
-
+		
 		int[][] preference = readFile(PREFROWCOUNT, topNString);
 		//wirteFile(preference, "d:/pre.txt");写入
 		double[][] pre_minus_mean = minus_mean(preference);

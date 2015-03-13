@@ -38,6 +38,8 @@ public class Accuracy {
 	public double rmse;
 	public double mae;
 	public double precision;
+	public double sibn ;
+	public double esibn;
 
 	private static double[][] readMatrix(String string) {
 		double[][] readmatr = new double[PREFROWCOUNT][COLUMNCOUNT];
@@ -70,37 +72,19 @@ public class Accuracy {
 
 	}
 
-	/*
-	 * public static void main(String[] args) {
-	 * 
-	 * double[][] minematrix = new double[PREFROWCOUNT][COLUMNCOUNT]; double[][]
-	 * testmatrix = new double[PREFROWCOUNT][COLUMNCOUNT]; minematrix =
-	 * readMatrix("d:/result_all.txt"); testmatrix = readMatrix(
-	 * "E:/doc/lab/dataset/recommending/movielens-100k/0.5Item_Test_4pre.base");
-	 * 
-	 * double count = 0; double sum = 0; double sum_rmse = 0; double acc = 0;
-	 * double acc_rmse = 0; for (int i = 0; i < PREFROWCOUNT; i++) { for (int j
-	 * = 0; j < COLUMNCOUNT; j++) {
-	 * 
-	 * //System.out.println(testmatrix[i][j]+" "+minematrix[i][j]); // if
-	 * ((testmatrix[i][j]!=0.0)&&(minematrix[i][j]!=0.0)) { if
-	 * ((testmatrix[i][j]!=0.0)&&(minematrix[i][j]!=0.0)) { sum +=
-	 * Math.abs(testmatrix[i][j] - minematrix[i][j]); sum_rmse += Math.pow(
-	 * Math.abs(testmatrix[i][j] - minematrix[i][j]), 2); count = count + 1;
-	 * 
-	 * } } } System.out.println(count); acc = sum / count; acc_rmse =
-	 * Math.sqrt(sum_rmse / count); System.out.println("MAE：" + acc);
-	 * System.out.println("RMSE:" + acc_rmse); mae = acc; rmse = acc_rmse;
-	 * 
-	 * }
-	 */
-	public Accuracy(String judgepath, String resultpath, int listSize) {
+	public Accuracy(String judgepath, String resultpath, String trainpath,int listSize) {
 		double[][] minematrix = new double[PREFROWCOUNT][COLUMNCOUNT];
 		double[][] testmatrix = new double[PREFROWCOUNT][COLUMNCOUNT];
+		double[][] trainmatrix = new double[PREFROWCOUNT][COLUMNCOUNT];
 		minematrix = readMatrix(resultpath);
 		testmatrix = readMatrix(judgepath);
+		trainmatrix = readMatrix(trainpath);
 
 		int count = 0;
+		int calnum = 0;
+		int trainUsers = 0;
+		int itemRatedNum[] = new int[COLUMNCOUNT];
+		
 		double sum = 0;
 		double sum_rmse = 0;
 		double acc = 0;
@@ -108,9 +92,17 @@ public class Accuracy {
 
 		double preNum = 0;
 		double prePer = 0;
+		
+		double sibn_each = 0.0;//一个用户每个商品sibn的初始值
+		double sibn_user = 0.0;
+		int sibn_listsize = 0;
+		
+		double esibn_each = 0.0;
+		double esibn_user = 0.0;
 
-		int calnum = 0;
-
+		trainUsers = findTheUserNum(trainmatrix);//在训练集中的用户数
+		System.out.println("trainUsers:"+trainUsers);
+		itemRatedNum = findTheRatedNum(trainmatrix);//在训练集中给每个商品评分的人数
 		GetNumber arr4sort[] = new GetNumber[COLUMNCOUNT];
 
 		for (int i = 0; i < PREFROWCOUNT; i++) {
@@ -136,6 +128,8 @@ public class Accuracy {
 				acc_rmse = Math.sqrt(sum_rmse / count) + acc_rmse;// 累加rmse
 
 				Arrays.sort(arr4sort, new ExchangeComparator());//对排序数组进行排序
+				
+				sibn_listsize = listSize;//sibn的listsize初始化为listsize
 
 				for (int j = listSize; j > 0; j--) {
 					int add[] = new int[listSize];// 用以记录最大十个数的地址
@@ -143,12 +137,31 @@ public class Accuracy {
 					if (testmatrix[i][add[j - 1]] != 0.0) {
 						preNum = preNum + 1;
 					}
-	
+					
+					//记录list中每个商品的sibn,进行累加
+					if (itemRatedNum[add[j-1]] == 0) {
+						sibn_listsize = sibn_listsize -1;
+					}else {
+						sibn_each = log2N(trainUsers/((double)itemRatedNum[add[j-1]])) +sibn_each;
+						System.out.println("sibn_each:"+sibn_each);
+					}
+					
+					//计算esibn
+					if (testmatrix[i][add[j -1]] !=0.0) {
+						esibn_each = log2N(trainUsers/((double)itemRatedNum[add[j-1]])) +esibn_each;
+						System.out.println("esibn_each:"+esibn_each);
+					}
+					
 				}
-
+				//每个用户列表的sibn，进行累加
+				sibn_user = sibn_each/sibn_listsize + sibn_user;
+				esibn_user = esibn_each/sibn_listsize + esibn_user;
+				System.out.println("esibn_each/esibn_listsize:"+esibn_each+" "+sibn_listsize );
+				sibn_each = 0.0;
+				esibn_each = 0.0;
+				System.out.println("sibn_user:"+sibn_user+" "+"esibn_user"+esibn_user);
 			}
 			prePer = preNum / listSize + prePer;//准确率的sum
-			
 
 			count = 0;
 			sum = 0;
@@ -158,10 +171,44 @@ public class Accuracy {
 		mae = acc / calnum;
 		rmse = acc_rmse / calnum;
 		precision = prePer / calnum;
+		sibn = sibn_user/calnum;
+		esibn = esibn_user/calnum;
 		System.out.println("calnum:"+calnum);
 		System.out.println("MAE：" + mae);
 		System.out.println("RMSE:" + rmse);
 		System.out.println("precision:" + precision);
+		System.out.println("SIBN:"+sibn);
+		System.out.println("ESIBN:"+esibn);
 
+	}
+
+	private double log2N(double d) {
+		//计算以2为底的对数
+		return Math.log(d)/Math.log(2);
+	}
+
+	private int[] findTheRatedNum(double[][] trainmatrix) {
+		int[] a = new int[COLUMNCOUNT];
+		for (int i = 0; i < COLUMNCOUNT; i++) {
+			for (int j = 0; j < PREFROWCOUNT; j++) {
+				if (trainmatrix[j][i]!= 0.0) {
+					a[i] = a[i]+1;
+				}
+			}
+		}
+		return a;
+	}
+
+	private int findTheUserNum(double[][] matrix) {
+		int userNum = 0;
+		for (int i = 0; i < PREFROWCOUNT; i++) {
+			for (Integer j = 0; j < COLUMNCOUNT; j++) {
+				if(matrix[i][j]!= 0.0){
+					userNum = userNum +1;
+					break;
+				}
+			}
+		}
+		return userNum;
 	}
 }
