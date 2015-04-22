@@ -76,7 +76,7 @@ public class ChooseTopN {
 
 	private String cinTopNEdge(int n,int[] ItemPop, String choosefileName,String path) {
 
-		String uuid = path+"0.5Item_Test_"+n+"top"+ ".base";
+		String uuid = path+"uUse_Item_"+n+"top"+ ".txt";
 		File outFile = new File(uuid);
 		FileWriter outFileWriter = null;
 		try {

@@ -13,7 +13,7 @@ import java.util.List;
 
 import sun.awt.DisplayChangedListener;
 
-public class Recommendation {
+public class RecommendationDouble {
 
 	public static final int KNEIGHBOUR = 10;
 	public static  int COLUMNCOUNT ; // number of items
@@ -23,23 +23,23 @@ public class Recommendation {
 	//sourcepath 资源的路径
 	//recN 每个user推荐recN个商品
 	public void generateRecommendations(int topN, String sourcepath,String resultpath,String listPath,int COLUMNCOUNT,int PREFROWCOUNT) {
-		Recommendation.COLUMNCOUNT = COLUMNCOUNT;
-		Recommendation.PREFROWCOUNT = PREFROWCOUNT;
+		RecommendationDouble.COLUMNCOUNT = COLUMNCOUNT;
+		RecommendationDouble.PREFROWCOUNT = PREFROWCOUNT;
 		//	String topNString = sourcepath + "0.5Item_Test_" + topN + "top.base";
 		
-		int[][] preference = readFile(PREFROWCOUNT, sourcepath);
-		int[][] trans_pref = transpose_matrix(preference);
+		double[][] preference = readFile(PREFROWCOUNT, sourcepath);
+		double[][] trans_pref = transpose_matrix(preference);
 
 /*		double[][] pre_minus_mean = minus_mean(preference,trans_pref);
 		double[][] mean_trans_pref = transpose_matrix(pre_minus_mean);*/
 		
 		int[] isZero = iszero(preference);  //某个商品是否被打分过
 		double[][] similarityMatrix = produceSimilarityMatrix_double(isZero,trans_pref);
-/*		wirteFile(preference, sourcepath+"preference.txt");
+		wirteFile(preference, sourcepath+"preference.txt");
 		wirteFile(trans_pref, sourcepath+"trans_pref.txt");
-		wirteFile(pre_minus_mean, sourcepath+"pre_minus_mean.txt");
-		wirteFile(mean_trans_pref, sourcepath+"mean_trans_pref.txt");
-		wirteFile(similarityMatrix, sourcepath+"similarityMatrix.txt");*/
+/*		wirteFile(pre_minus_mean, sourcepath+"pre_minus_mean.txt");
+		wirteFile(mean_trans_pref, sourcepath+"mean_trans_pref.txt");*/
+		wirteFile(similarityMatrix, sourcepath+"similarityMatrix.txt");
 
 		File file = new File(resultpath); // 存放数组数据的文件
 		FileWriter out = null;
@@ -70,17 +70,16 @@ public class Recommendation {
 					neighborSerial = findKNeighbors(preference[i], j,
 							similarityMatrix);
 					for (int m = 0; m < neighborSerial.size(); m++) {
-/*//						if (preference[i][neighborSerial.get(m)] != 0) {
-*/							sum = sum + similarityMatrix[j][neighborSerial.get(m)]* preference[i][neighborSerial.get(m)];
-							similaritySum = similaritySum+similarityMatrix[j][neighborSerial.get(m)];
-							
-/*//						}
-*/						
+						if (preference[i][neighborSerial.get(m)] != 0) {
+							sum += similarityMatrix[j][neighborSerial.get(m)]* preference[i][neighborSerial.get(m)];
+							similaritySum += similarityMatrix[j][neighborSerial.get(m)];
+						}
+						
 					}
 					if (sum != 0) {
 						score = sum / similaritySum ;//+ mean_col ;
 					} else {
-						score = 0;
+						score = mean_col;
 					}
 					if (score > max) {
 						max = score;
@@ -199,14 +198,14 @@ public class Recommendation {
  * @return rated:0; unrated:1
  * 
  */
-	public int[] iszero(int[][] preference) {
+	public int[] iszero(double[][] preference) {
 		int pre_row = preference.length;
 		int pre_col = preference[0].length;
 
 		int[] isZero = new int[pre_col];
 
 		for (int i = 0; i < pre_col; i++) {
-			int temp = 0;
+			double temp = 0;
 
 			for (int j = 0; j < pre_row; j++) {
 				temp = temp + preference[j][i];
@@ -222,7 +221,7 @@ public class Recommendation {
 	}
 
 	private double[][] produceSimilarityMatrix_double(int[] isZero,
-			int[][] trans_pref) {
+			double[][] trans_pref) {
 		double[] item1;
 		double[] item2;
 /*		item1 = new double[PREFROWCOUNT];
@@ -261,28 +260,6 @@ public class Recommendation {
 		return similarityMatrix;
 	}
 
-	
-/*	private double[][] produceSimilarityMatrix_precision(int[] isZero,
-			int[][] trans_pref) {
-		double[] item1;
-		double[] item2;
-
-		double[][] similarityMatrix = new double[COLUMNCOUNT][COLUMNCOUNT];
-		for (int i = 0; i < COLUMNCOUNT; i++) {
-			for (int j = 0; j <= i; j++) {
-
-				if (i == j) {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
-				} else if ((isZero[i] == 1) || (isZero[j] == 1)) {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
-				} else {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = computeSimilarity(trans_pref[i],trans_pref[j]);
-				}
-			}
-		}
-		return similarityMatrix;
-	}*/
-
 	/**
 	 * This method is used to get the preference which have minused the mean
 	 * score
@@ -292,7 +269,7 @@ public class Recommendation {
 	 * @param similarityMatrix
 	 * @return
 	 */
-	private double[][] minus_mean(int[][] a,int[][] a_tran) {
+	private double[][] minus_mean(int[][] a,double[][] a_tran) {
 		double[][] b = new double[a.length][a[0].length];
 		for (int i = 0; i < b[0].length; i++) {
 			double mean_col = item_means(a_tran[i]);
@@ -319,16 +296,16 @@ public class Recommendation {
 	 * @param similarityMatrix
 	 * @return
 	 */
-	private List<Integer> findKNeighbors(int[] score, int i,
+	private List<Integer> findKNeighbors(double[] score, int i,
 			double[][] similarityMatrix) { // 该方法有三个参数，score表示某一用户对所有项目的评分；i表示某个项目的序号
 		List<Integer> neighborSerial = new ArrayList<Integer>();
 		double[] similarity = new double[similarityMatrix.length];
 		for (int j = 0; j < similarityMatrix.length; j++) {
-//			if (score[j] != 0) {
+			if (score[j] != 0.0) {
 				similarity[j] = similarityMatrix[j][i];
-/*		} else {
+		} else {
 				similarity[j] = 0;
-			}*/
+			}
 		}
 		double[] temp = new double[similarity.length];
 		for (int j = 0; j < temp.length; j++) {
@@ -341,18 +318,9 @@ public class Recommendation {
 					neighborSerial.add(new Integer(j));
 			}
 		}*/
-		//2015.04.15 之前常用的
-/*		for (int m = temp.length - 1; m >= temp.length - KNEIGHBOUR; m--) {
-			for (int j = 0; j < similarity.length; j++) {
-				if (similarity[j] == temp[m] && similarity[j] != 0.0) {
-					neighborSerial.add(new Integer(j));
-					break;
-				}
-			}
-		}*/
 		for (int m = temp.length - 1; m >= temp.length - KNEIGHBOUR; m--) {
 			for (int j = 0; j < similarity.length; j++) {
-				if (similarity[j] == temp[m]&& j != i ) {
+				if (similarity[j] == temp[m] && similarity[j] != 0.0) {
 					neighborSerial.add(new Integer(j));
 					break;
 				}
@@ -418,10 +386,10 @@ public class Recommendation {
 		List<Double> list2 = new ArrayList<Double>();
 		int j = 0;
 		for (int i = 0; i < item1.length; i++) {
-			if (item1[i] != 0 || item2[i] != 0) { //&&
-				list1.add(new Double(item1[i]));
+/*			if (item1[i] != 0 || item2[i] != 0) { //&&
+*/				list1.add(new Double(item1[i]));
 				list2.add(new Double(item2[i]));
-			}
+/*			}*/
 			j++;
 		}
 		// System.out.println(list1+"  "+list2);
@@ -432,7 +400,7 @@ public class Recommendation {
 		List<Double> list2 = new ArrayList<Double>();
 		int j = 0;
 		for (int i = 0; i < item1.length; i++) {
-			if (item1[i] != 0 || item2[i] != 0) { //&&
+			if (item1[i] != 0 && item2[i] != 0) { //&&
 				list1.add(new Double(item1[i]));
 				list2.add(new Double(item2[i]));
 			}
@@ -473,8 +441,9 @@ public class Recommendation {
 	 * @param fileName
 	 * @return
 	 */
-	private int[][] readFile(int rowCount, String fileName) {
-		int[][] preference = new int[rowCount][COLUMNCOUNT];
+	private double[][] readFile(int rowCount, String fileName) {
+		double[][] preference = new double[rowCount][COLUMNCOUNT];
+		/*System.out.println(COLUMNCOUNT);*/
 
 		for (int i = 0; i < preference.length; i++) {
 			for (int j = 0; j < preference[0].length; j++) {
@@ -490,13 +459,15 @@ public class Recommendation {
 			int i = 0;
 			while (br.ready()) {
 				line = br.readLine();
-				String[] data = line.split("\t");
+				String[] data = line.split("::");
 				// System.out.println(Arrays.toString(data));
 				// if (data[0].equals("917")) {
 				// System.out.println(Arrays.toString(data));
 				// }
 				//System.out.println(data[0]+" "+data[1]+COLUMNCOUNT);
-				preference[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = 1;
+				/*System.out.println((Integer.parseInt(data[0]) - 1) +" "+(Integer.parseInt(data[1]) - 1)+" "+Double.parseDouble(data[2]));*/
+				preference[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = Double.parseDouble(data[2]);
+				
 				// preference[0][0] = Integer.parseInt(data[2]);
 				// System.out.println(Arrays.deepToString(preference));
 
@@ -550,9 +521,9 @@ public class Recommendation {
 	 * @param a
 	 * @return mean score
 	 */
-	private double item_means(int[] a) {
+	private double item_means(double[] a) {
 		int count = 0;
-		int sum = 0;
+		double sum = 0;
 		for (int i = 0; i < a.length; i++) {
 			sum += a[i];
 			if (a[i] != 0) {
@@ -618,7 +589,7 @@ public class Recommendation {
 		return result;
 	}
 
-	public Recommendation(int n, String sourcepath,String resultpath,String listPath,int COLUMNCOUNT,int PREFROWCOUNT) {
+	public RecommendationDouble(int n, String sourcepath,String resultpath,String listPath,int COLUMNCOUNT,int PREFROWCOUNT) {
 		generateRecommendations(n, sourcepath,resultpath,listPath,COLUMNCOUNT,PREFROWCOUNT);
 	}
 	/*
