@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 
+import org.omg.CORBA.PRIVATE_MEMBER;
+
 class GetNumber {
 	double num;
 	Integer index;
@@ -33,248 +35,247 @@ class ExchangeComparator implements Comparator<GetNumber> {
 }
 
 public class Accuracy {
-	public static  int COLUMNCOUNT ;//= 1682; // number of items
-	public static  int PREFROWCOUNT ;//= 943;
-//	public static  int TESTROWCOUNT = 20000;
-	public double rmse;
-	public double mae;
-	public double precision;
-	public double sibn ;
-	public double esibn;
-	public double recall ;
-	public double fOne ;
-
-	private static double[][] readMatrix(String string) {
-		double[][] readmatr = new double[PREFROWCOUNT][COLUMNCOUNT];
-		for (int i = 0; i < PREFROWCOUNT; i++) {
-			for (int j = 0; j < COLUMNCOUNT; j++) {
-				readmatr[i][j] = 0.0;
-			}
-		}
-
-		try {
-			File file = new File(string);
-			FileReader fr = new FileReader(file);
-			BufferedReader br = new BufferedReader(fr);
-			String line = "";
-			int i = 0;
-			while (br.ready()) {
-				line = br.readLine();
-				String[] data = line.split("\t");
-				// System.out.println(Double.parseDouble(data[2]));
-				readmatr[Integer.parseInt(data[0]) - 1][Integer
-						.parseInt(data[1]) - 1] = Double.parseDouble(data[2]);
-
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return readmatr;
-
-	}
+	public static  int COLUMNCOUNT ;
+	public static  int PREFROWCOUNT ;
 	
-	private static double[][] readMatrixColon(String string) {
-		double[][] readmatr = new double[PREFROWCOUNT][COLUMNCOUNT];
-		for (int i = 0; i < PREFROWCOUNT; i++) {
-			for (int j = 0; j < COLUMNCOUNT; j++) {
-				readmatr[i][j] = 0.0;
-			}
-		}
-
-		try {
-			File file = new File(string);
-			FileReader fr = new FileReader(file);
-			BufferedReader br = new BufferedReader(fr);
-			String line = "";
-			int i = 0;
-			while (br.ready()) {
-				line = br.readLine();
-				String[] data = line.split("::");
-				// System.out.println(Double.parseDouble(data[2]));
-				readmatr[Integer.parseInt(data[0]) - 1][Integer
-						.parseInt(data[1]) - 1] = Double.parseDouble(data[2]);
-
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return readmatr;
-
-	}
-
-	public Accuracy(String judgepath, String resultpath, String trainpath,int listSize,int columncount2,int prefrowcount2) {
+	private double precision;
+	private double recall ;
+	private double fOne ;
+	private double sibn ;
+	private double esibn;
+	private double diversity;
+	private int userNum;
+	
+	public Accuracy(String judgepath, double[][] result, int[][] train,int listSize,int columncount2,int prefrowcount2) {
 		Accuracy.COLUMNCOUNT = columncount2;
 		Accuracy.PREFROWCOUNT = prefrowcount2;
-		double[][] minematrix = new double[PREFROWCOUNT][COLUMNCOUNT];
-		double[][] testmatrix = new double[PREFROWCOUNT][COLUMNCOUNT];
-		double[][] trainmatrix = new double[PREFROWCOUNT][COLUMNCOUNT];
-		minematrix = readMatrix(resultpath);
-		testmatrix = readMatrix(judgepath);
-		trainmatrix = readMatrix(trainpath);
-
-		int count = 0;
-		int calnum = 0;
-		int trainUsers = 0;
-		int itemRatedNum[] = new int[COLUMNCOUNT];
 		
-		double sum = 0;
-		double sum_rmse = 0;
-		double acc = 0;
-		double acc_rmse = 0;
-
-		double preNum = 0;
-		double prePer = 0;
+		int[] trueUser = new int[prefrowcount2];
+		int[] itemRatedNum = new int[columncount2];
+		double[][] trainMatrix = new double[prefrowcount2][columncount2];
+		double[][] testMatrix = new double[prefrowcount2][columncount2];
+		double[][] mineMatrix = new double[prefrowcount2][columncount2];
 		
-		double sibn_each = 0.0;//一个用户每个商品sibn的初始值
-		double sibn_user = 0.0;
-		int sibn_listsize = 0;
+		testMatrix = readMatrix(judgepath);
+		mineMatrix = getRecListMatrix(result,listSize);
 		
-		double esibn_each = 0.0;
-		double esibn_user = 0.0;
+		coutArray(mineMatrix, "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/result_Rec.txt");
+		coutArrayMatrix(testMatrix,  "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/test_matrix.txt");
+		trainMatrix = fromIntToDouble(train);
+		trueUser = calculateUserNum(trainMatrix,testMatrix,prefrowcount2);
+		itemRatedNum = findTheRatedNum(trainMatrix);
 		
-		double recall_size = 0.0;
-		double recallPer = 0.0;
-		
-
-		trainUsers = findTheUserNum(trainmatrix);//在训练集中的用户数
-		System.out.println("trainUsers:"+trainUsers);
-		itemRatedNum = findTheRatedNum(trainmatrix);//在训练集中给每个商品评分的人数
-		GetNumber arr4sort[] = new GetNumber[COLUMNCOUNT];
-		
-		int whole_num = 0;
-
-		for (int i = 0; i < PREFROWCOUNT; i++) {
-			for (Integer j = 0; j < COLUMNCOUNT; j++) {
-
-				//计算mae和rmse的sum
-				if ((testmatrix[i][j] != 0.0) && (minematrix[i][j] != 0.0)) {
-					sum += Math.abs(testmatrix[i][j] - minematrix[i][j]);
-					sum_rmse += Math.pow(
-							Math.abs(testmatrix[i][j] - minematrix[i][j]), 2);
-					count = count + 1;
-
-				}
-				
-				if (testmatrix[i][j] != 0.0) {
-					recall_size = recall_size +1;
-				}
-				//计算precision：对排序数组进行赋值
-				arr4sort[j] = new GetNumber(j, minematrix[i]);
-
-			}
-
-			if (count == 0) {
-			} else {
-				
-				calnum = calnum + 1;
-				acc = sum / count + acc; // 累加mae
-				acc_rmse = Math.sqrt(sum_rmse / count) + acc_rmse;// 累加rmse
-
-				Arrays.sort(arr4sort, new ExchangeComparator());//对排序数组进行排序
-				sibn_listsize = listSize;//sibn的listsize初始化为listsize
-
-				for (int j = listSize; j > 0; j--) {
-					int add[] = new int[listSize];// 用以记录最大十个数的地址
-					add[j - 1] = arr4sort[COLUMNCOUNT - j].index;
-					//System.out.println("用户"+i+" "+arr4sort[COLUMNCOUNT - j].index+" "+arr4sort[COLUMNCOUNT - j].num +" " +testmatrix[i][add[j - 1]]);
-					if (testmatrix[i][add[j - 1]] != 0.0) {
-						preNum = preNum + 1;
-						whole_num = whole_num +1;
-					}
-					
-					//记录list中每个商品的sibn,进行累加
-					if (itemRatedNum[add[j-1]] == 0) {
-						sibn_listsize = sibn_listsize -1;
-					}else {
-						sibn_each = log2N(trainUsers/((double)itemRatedNum[add[j-1]])) +sibn_each;
-						/*System.out.println("sibn_each:"+sibn_each);*/
-					}
-					
-					//计算esibn
-					if (testmatrix[i][add[j -1]] !=0.0) {
-						if (((double)itemRatedNum[add[j-1]]) !=0.0) {//20150327
-							esibn_each = log2N(trainUsers/((double)itemRatedNum[add[j-1]])) +esibn_each;
-						}
-						
-						//System.out.println("esibn_each:"+esibn_each);
-					}
-					
-				}
-				//每个用户列表的sibn，进行累加
-				if (sibn_listsize != 0) {
-					sibn_user = sibn_each/sibn_listsize + sibn_user;
-					esibn_user = esibn_each/sibn_listsize + esibn_user;
-					
-/*					File file = new File( "E:/doc/lab/dataset/recommending/netflix/2/last/esibn_user.txt");
-					FileWriter fileWriter = null;
-					try {
-						fileWriter = new FileWriter(file,true);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-
-					try {
-						fileWriter.write(esibn_user + "\t"+esibn_each+"\t"+sibn_listsize+"\n");
-					} catch (IOException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
-
-					try {
-						fileWriter.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}*/
-				}
-				
-				
-				//System.out.println("esibn_each/esibn_listsize:"+esibn_each+" "+sibn_listsize );
-				sibn_each = 0.0;
-				esibn_each = 0.0;
-				//System.out.println("sibn_user:"+sibn_user+" "+"esibn_user"+esibn_user);
-				
-				recallPer = recallPer + preNum/recall_size;//召回率的sum
-			}
-			prePer = preNum / listSize + prePer;//准确率的sum
-			System.out.println("prePer:"+prePer);
-
-			count = 0;
-			sum = 0;
-			sum_rmse = 0;
-			preNum = 0;
-			recall_size = 0;
-		}
-		mae = acc / calnum;
-		rmse = acc_rmse / calnum;
-		precision = prePer / calnum;
-		sibn = sibn_user/calnum;
-		esibn = esibn_user/calnum;
-		recall = recallPer / calnum;
-		fOne = (2*recall*precision)/(recall + precision);
-		
-		System.out.println("calnum:"+calnum);
-		System.out.println("MAE：" + mae);
-		System.out.println("RMSE：" + rmse);
-		System.out.println("precision:" + precision);
-		System.out.println("racall:"+recall);
-		System.out.println("F1:"+fOne);
-		System.out.println("SIBN："+sibn);
-		System.out.println("ESIBN："+esibn);
-		System.out.println("Whole Num："+whole_num);
+		System.out.println("userNum:"+userNum);
+		this.precision = calculatePrecision(trainMatrix,testMatrix,mineMatrix,userNum,trueUser,listSize);
+		this.recall = calculateRecall(trainMatrix,testMatrix,mineMatrix,userNum,trueUser);
+		this.fOne = calculateFOne(this.precision,this.recall);
+		this.sibn = calculateSibn(trainMatrix,testMatrix,mineMatrix,itemRatedNum,listSize,userNum,trueUser);
+		this.esibn = calculateEsibn(trainMatrix,testMatrix,mineMatrix,itemRatedNum,listSize,userNum,trueUser);
+		this.diversity = calculateDiversity(trainMatrix,testMatrix,mineMatrix);
 
 	}
 
 
 
 
+	private int[] calculateUserNum(double[][] trainMatrix, double[][] testMatrix, int prefrowcount2) {
+		int num = 0;
+		int[] user = new int[prefrowcount2];
+		
+		for (int i = 0; i < testMatrix.length; i++) {
+			double testCount = 0.0;
+			double trainCount = 0.0;
+			for (int j = 0; j < testMatrix[0].length; j++) {
+				testCount = testCount +testMatrix[i][j];
+				trainCount = trainCount + trainMatrix[i][j];
+			}
+			if ((testCount > 0.0)&&(trainCount > 0.0)) {
+				num = num +1;
+				user[i] = 1;
+			}
+		}
+		setUserNum(num);
+		return user;
+	}
+
+
+
+
+	private double[][] getRecListMatrix(double[][] result,int listSize) {
+		double[][] recMatrix = new double[result.length][result[0].length];
+		GetNumber[] num4sort = new GetNumber[result[0].length];
+		
+		for (int i = 0; i < recMatrix.length; i++) {
+			for (int j = 0; j < recMatrix[0].length; j++) {
+				num4sort[j] = new GetNumber(j, result[i]);
+			}
+			Arrays.sort(num4sort, new ExchangeComparator());
+			for (int j = 0; j < listSize; j++) {
+				recMatrix[i][num4sort[num4sort.length - j -1].index] = result[i][num4sort[num4sort.length - j -1].index];
+			}
+		}
+		return recMatrix;
+	}
+
+
+
+
+	private double calculateDiversity(double[][] trainmatrix, double[][] testmatrix, double[][] minematrix) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+
+
+
+	private double calculateEsibn(double[][] trainmatrix, double[][] testmatrix,double[][] minematrix, int[] itemRatedNum, int listSize,int userNum, int[] trueUser) {
+		double esibn_all = 0.0;
+		double esibn_all_sum = 0.0;
+		for (int i = 0; i < minematrix.length; i++) {
+			if (trueUser[i] != 1) {
+			} else {
+				double esibn_each = 0.0;
+				double esibn_each_sum = 0.0;
+				for (int k = 0; k < minematrix[0].length; k++) {
+					if ((minematrix[i][k] != 0.0)&&(testmatrix[i][k]!= 0.0)) {
+						esibn_each_sum = log2N(userNum/((double)itemRatedNum[k])) + esibn_each_sum;
+					}
+				}
+				esibn_each = esibn_each_sum/listSize;
+				esibn_all_sum = esibn_all_sum + esibn_each;
+			}
+		}
+		esibn_all = esibn_all_sum/userNum;
+		System.out.println("esibn:"+esibn_all);
+		return esibn_all;
+	}
+
+
+
+
+	private double calculateSibn(double[][] trainmatrix, double[][] testmatrix,double[][] minematrix, int[] itemRatedNum, int listSize,int userNum, int[] trueUser) {
+		double sibn_all = 0.0;
+		double sibn_all_sum = 0.0;
+		for (int i = 0; i < minematrix.length; i++) {
+			if (trueUser[i] != 1) {
+			} else {
+				double sibn_each = 0.0;
+				double sibn_each_sum = 0.0;
+				for (int k = 0; k < minematrix[0].length; k++) {
+					if (minematrix[i][k] != 0.0) {
+						sibn_each_sum = log2N(userNum/((double)itemRatedNum[k])) + sibn_each_sum;
+					}
+				}
+				sibn_each = sibn_each_sum/listSize;
+				sibn_all_sum = sibn_all_sum + sibn_each;
+			}
+		}
+		sibn_all = sibn_all_sum/userNum;
+		System.out.println("sibn:"+sibn_all);
+		return sibn_all;
+	}
+
+	private double calculateFOne(double pre, double rec) {
+		double fone = (2*rec*pre)/(rec + pre);
+		System.out.println("fone:"+fone);
+		return fone;
+	}
+
+	private double calculateRecall(double[][] trainmatrix, double[][] testmatrix, double[][] minematrix, int userNum, int[] trueUser) {
+		double Rec_all = 0.0;
+		double Rec_all_sum = 0.0;
+		if (userNum <=0) {
+			System.err.println("userNum is wrong! ");
+		}
+		
+		for (int i = 0; i < minematrix.length; i++) {
+			if (trueUser[i] != 1) {
+			}else {
+				double Rec_each = 0.0;
+				double Rec_each_sum = 0.0;
+				int listSize = 0;
+				for (int j = 0; j < minematrix[0].length; j++) {
+					if (testmatrix[i][j]!=0.0) {
+						listSize = listSize +1;
+						if (minematrix[i][j]!=0.0) {
+							Rec_each_sum = Rec_each_sum +1;
+						}
+					}
+				}
+				Rec_each = Rec_each_sum/listSize;
+				Rec_all_sum = Rec_all_sum +Rec_each;
+				
+			}
+		}
+		Rec_all = Rec_all_sum/userNum;
+		System.out.println("recall:"+Rec_all);
+		return Rec_all;
+	}
+
+	private double calculatePrecision(double[][] trainmatrix, double[][] testmatrix, double[][] minematrix, int userNum, int[] trueUser, int listSize) {
+		double pre_all = 0.0;
+		double pre_all_sum = 0.0;
+		if (listSize <= 0) {
+			System.err.println("listSize is wrong! ");
+		}
+		if (userNum <=0) {
+			System.err.println("userNum is wrong! ");
+		}
+		
+		for (int i = 0; i < minematrix.length; i++) {
+			if (trueUser[i] != 1) {
+			}else {
+				double pre_each = 0.0;
+				double pre_each_sum = 0.0;
+				for (int j = 0; j < minematrix[0].length; j++) {
+					if (((minematrix[i][j])!=0.0)&&(testmatrix[i][j]!=0.0)) {
+						pre_each_sum = pre_each_sum +1;
+					}
+				}
+				pre_each = pre_each_sum/listSize;
+				pre_all_sum = pre_all_sum +pre_each;
+			}
+		}
+		pre_all = pre_all_sum/userNum;
+		System.out.println("pre_all:"+pre_all);
+		return pre_all;
+	}
+
+	public int[] itemIsZero(int[][] preference) {
+		int pre_row = preference.length;
+		int pre_col = preference[0].length;
+		
+		int[] isZero = new int[pre_col];
+		for (int i = 0; i < pre_col; i++) {
+			int temp = 0;
+			for (int j = 0; j < pre_row; j++) {
+				temp = temp + preference[j][i];
+			}
+			if (temp == 0) {
+				isZero[i] = 1;
+			} else {
+				isZero[i] = 0;
+			}
+		}
+		return isZero;
+	}
+
+
+	private double[][] fromIntToDouble(int[][] train) {
+		double[][] trainmatrix = new double[train.length][train[0].length];
+		for (int i = 0; i < trainmatrix.length; i++) {
+			for (int j = 0; j < trainmatrix[0].length; j++) {
+				trainmatrix[i][j] = train[i][j];
+			}
+		}
+		return trainmatrix;
+	}
+/**
+ * Calculate the log2N
+ * @param N
+ * @return 
+ */
 	private double log2N(double d) {
-		//计算以2为底的对数
 		return Math.log(d)/Math.log(2);
 	}
 
@@ -302,5 +303,233 @@ public class Accuracy {
 			}
 		}
 		return userNum;
+	}
+	
+	private static double[][] readMatrix(String string) {
+		double[][] readmatr = new double[PREFROWCOUNT][COLUMNCOUNT];
+		for (int i = 0; i < PREFROWCOUNT; i++) {
+			for (int j = 0; j < COLUMNCOUNT; j++) {
+				readmatr[i][j] = 0.0;
+			}
+		}
+		try {
+			File file = new File(string);
+			FileReader fr = new FileReader(file);
+			BufferedReader br = new BufferedReader(fr);
+			String line = "";
+			while (br.ready()) {
+				line = br.readLine();
+				String[] data = line.split("\t");
+				if (Double.parseDouble(data[2]) >= 3) {
+					readmatr[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = 1;
+				}
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return readmatr;
+
+	}
+	
+	public static void coutArray(double[][] a,String string){
+		File file = new File(string);
+		FileWriter writer = null ;
+		try {
+			writer = new FileWriter(file);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		for (int i = 0; i < a.length; i++) {
+			for (int j = 0; j < a[0].length; j++) {
+				if (a[i][j] != 0.0) {
+					try {
+						writer.write((i+1)+"\t"+(j+1)+"\t"+a[i][j]+"\n");
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+			}
+			
+		}
+		try {
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	public static void coutArrayMatrix(double[][] a,String string){
+		File file = new File(string);
+		FileWriter writer = null ;
+		try {
+			writer = new FileWriter(file);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		for (int i = 0; i < a.length; i++) {
+			for (int j = 0; j < a[0].length; j++) {
+				try {
+					writer.write(a[i][j]+"\t");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			try {
+				writer.write("\n");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		try {
+			writer.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+
+	/**
+	 * @return the userNum
+	 */
+	public int getUserNum() {
+		return userNum;
+	}
+	/**
+	 * @param userNum the userNum to set
+	 */
+	public void setUserNum(int userNum) {
+		this.userNum = userNum;
+	}
+
+
+
+
+	/**
+	 * @return the precision
+	 */
+	public double getPrecision() {
+		return precision;
+	}
+
+
+
+
+	/**
+	 * @param precision the precision to set
+	 */
+	public void setPrecision(double precision) {
+		this.precision = precision;
+	}
+
+
+
+
+	/**
+	 * @return the recall
+	 */
+	public double getRecall() {
+		return recall;
+	}
+
+
+
+
+	/**
+	 * @param recall the recall to set
+	 */
+	public void setRecall(double recall) {
+		this.recall = recall;
+	}
+
+
+
+
+	/**
+	 * @return the fOne
+	 */
+	public double getfOne() {
+		return fOne;
+	}
+
+
+
+
+	/**
+	 * @param fOne the fOne to set
+	 */
+	public void setfOne(double fOne) {
+		this.fOne = fOne;
+	}
+
+
+
+
+	/**
+	 * @return the sibn
+	 */
+	public double getSibn() {
+		return sibn;
+	}
+
+
+
+
+	/**
+	 * @param sibn the sibn to set
+	 */
+	public void setSibn(double sibn) {
+		this.sibn = sibn;
+	}
+
+
+
+
+	/**
+	 * @return the esibn
+	 */
+	public double getEsibn() {
+		return esibn;
+	}
+
+
+
+
+	/**
+	 * @param esibn the esibn to set
+	 */
+	public void setEsibn(double esibn) {
+		this.esibn = esibn;
+	}
+
+
+
+
+	/**
+	 * @return the diversity
+	 */
+	public double getDiversity() {
+		return diversity;
+	}
+
+
+
+
+	/**
+	 * @param diversity the diversity to set
+	 */
+	public void setDiversity(double diversity) {
+		this.diversity = diversity;
 	}
 }

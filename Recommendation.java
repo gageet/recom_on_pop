@@ -1,4 +1,3 @@
-
 package pku;
 
 import java.io.BufferedReader;
@@ -11,133 +10,93 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import sun.awt.DisplayChangedListener;
-
 public class Recommendation {
 
-	public static final int KNEIGHBOUR = 10;
-	public static  int COLUMNCOUNT ; // number of items
-	public static  int PREFROWCOUNT;
-
-	//topN 从流行性中选择前N个流行的
-	//sourcepath 资源的路径
-	//recN 每个user推荐recN个商品
-	public void generateRecommendations(int topN, String sourcepath,String resultpath,String listPath,int COLUMNCOUNT,int PREFROWCOUNT) {
+	public static int KNEIGHBOUR = 10; // the neighbour number of every item/user
+	public static int COLUMNCOUNT; // the whole number of items
+	public static int PREFROWCOUNT; // the whole number of users
+	private double[][] result;
+	private int[][] preference;
+	
+	public Recommendation(int topN, String sourcepath, String resultpath, int COLUMNCOUNT, int PREFROWCOUNT) {
 		Recommendation.COLUMNCOUNT = COLUMNCOUNT;
 		Recommendation.PREFROWCOUNT = PREFROWCOUNT;
-		//	String topNString = sourcepath + "0.5Item_Test_" + topN + "top.base";
-		
-		int[][] preference = readFile(PREFROWCOUNT, sourcepath);
+
+		preference = readFile(PREFROWCOUNT,COLUMNCOUNT, sourcepath);
 		int[][] trans_pref = transpose_matrix(preference);
-
-/*		double[][] pre_minus_mean = minus_mean(preference,trans_pref);
-		double[][] mean_trans_pref = transpose_matrix(pre_minus_mean);*/
-		
-		int[] isZero = iszero(preference);  //某个商品是否被打分过
+		int[] isZero = itemIsZero(preference); // 某个商品是否被打分过
 		double[][] similarityMatrix = produceSimilarityMatrix_double(isZero,trans_pref);
-/*		wirteFile(preference, sourcepath+"preference.txt");
-		wirteFile(trans_pref, sourcepath+"trans_pref.txt");
-		wirteFile(pre_minus_mean, sourcepath+"pre_minus_mean.txt");
-		wirteFile(mean_trans_pref, sourcepath+"mean_trans_pref.txt");
-		wirteFile(similarityMatrix, sourcepath+"similarityMatrix.txt");*/
+		computeScore(resultpath,preference,similarityMatrix,COLUMNCOUNT,PREFROWCOUNT);
+		
+	}
 
+/**
+ * compute the final score of every item for users after recommendation 
+ * @param resultpath
+ * @param preference
+ * @param similarityMatrix
+ * @param colCount
+ * @param rowCount
+ */
+	private void computeScore(String resultpath,int[][] preference,double[][] similarityMatrix,int colCount,int rowCount) {
+		result = new double[rowCount][colCount];
+		
 		File file = new File(resultpath); // 存放数组数据的文件
 		FileWriter out = null;
-		
-/*		File file2 = new File(listPath);
-		FileWriter out2 = null;*/
 		try {
 			out = new FileWriter(file);
-			/*out2 = new FileWriter(file2);*/
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
-		} // 文件写入流
+		}
 
 		List<Integer> neighborSerial = new ArrayList<Integer>();
-		for (int j = 0; j < COLUMNCOUNT; j++) {
+		for (int j = 0; j < colCount; j++) {
 			neighborSerial.clear();
-			double max = 0;
-			int itemSerial = 0;
-			double mean_col = item_means(trans_pref[j]); //每一列的item平均分
-			
-			for (int i = 0; i < PREFROWCOUNT; i++) {
-				if (preference[i][j] == 0) { //给没有评分的预测评分
-					
+			neighborSerial = findKNeighbors(j,similarityMatrix);
+			for (int i = 0; i < rowCount; i++) {
+				if (preference[i][j] == 0) { // 给没有评分的预测评分
 					double similaritySum = 0;
 					double sum = 0;
 					double score = 0;
-					neighborSerial = findKNeighbors(preference[i], j,
-							similarityMatrix);
 					for (int m = 0; m < neighborSerial.size(); m++) {
-/*//						if (preference[i][neighborSerial.get(m)] != 0) {
-*/							sum = sum + similarityMatrix[j][neighborSerial.get(m)]* preference[i][neighborSerial.get(m)];
-							similaritySum = similaritySum+similarityMatrix[j][neighborSerial.get(m)];
-							
-/*//						}
-*/						
+						sum = sum + similarityMatrix[j][neighborSerial.get(m)] * preference[i][neighborSerial.get(m)];
+						similaritySum = similaritySum + similarityMatrix[j][neighborSerial.get(m)];
 					}
 					if (sum != 0) {
-						score = sum / similaritySum ;//+ mean_col ;
+						score = sum / similaritySum;
 					} else {
 						score = 0;
 					}
-					if (score > max) {
-						max = score;
-						itemSerial = j;
-					}
+					
+					result[i][j] = score;
 
- 				try {
+					try {
 						out.write((i + 1) + "\t" + (j + 1) + "\t" + score
 								+ "\n");
-/*						out2.write((i + 1) + "\t" + (j + 1) + "\t");
-						if (neighborSerial.size()>0) {
-							for (int m = 0; m < neighborSerial.size()-1; m++) {
-								out2.write(neighborSerial.get(m) + "\t");
-							}
-							out2.write(neighborSerial.get(neighborSerial.size()-1) + "\n");
-						}else {
-							out2.write( "\n");
-						}*/
-						
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					
-					
-
-				}/*else{//将训练集中有评分值的置零
-					preference[i][j] = 0;
-				}*/
-				//只输出前N个预测结果
-				
+				}
 			}
-			// System.out.println("The book recommended for user "+i+" is: "+bookName[itemSerial]+" score: "+max);
 		}
 		try {
 			out.close();
-		/*	out2.close();*/
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.out.println("Done");
-
 	}
-
 	private void wirteFile(double[][] preference, String string) {
-		File file = new File(string); // 存放数组数据的文件
-
+		File file = new File(string); 
 		FileWriter out = null;
 		try {
 			out = new FileWriter(file);
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
-		} // 文件写入流
-
-		// 将数组中的数据写入到文件中。每行各数据之间TAB间隔
+		} 
 		for (int i = 0; i < preference.length; i++) {
 			for (int j = 0; j < preference[0].length; j++) {
 				try {
@@ -159,6 +118,7 @@ public class Recommendation {
 		}
 
 	}
+
 	private void wirteFile(int[][] preference, String string) {
 		File file = new File(string); // 存放数组数据的文件
 
@@ -168,9 +128,7 @@ public class Recommendation {
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
-		} // 文件写入流
-
-		// 将数组中的数据写入到文件中。每行各数据之间TAB间隔
+		}
 		for (int i = 0; i < preference.length; i++) {
 			for (int j = 0; j < preference[0].length; j++) {
 				try {
@@ -192,22 +150,21 @@ public class Recommendation {
 		}
 
 	}
-/**
- * find that if the item has been rated. 
- * 
- * @param preference
- * @return rated:0; unrated:1
- * 
- */
-	public int[] iszero(int[][] preference) {
+
+	/**
+	 * find that if the item has been rated.
+	 * 
+	 * @param preference
+	 * @return rated:0; unrated:1
+	 * 
+	 */
+	public int[] itemIsZero(int[][] preference) {
 		int pre_row = preference.length;
 		int pre_col = preference[0].length;
-
+		
 		int[] isZero = new int[pre_col];
-
 		for (int i = 0; i < pre_col; i++) {
 			int temp = 0;
-
 			for (int j = 0; j < pre_row; j++) {
 				temp = temp + preference[j][i];
 			}
@@ -216,99 +173,32 @@ public class Recommendation {
 			} else {
 				isZero[i] = 0;
 			}
-
 		}
 		return isZero;
 	}
 
-	private double[][] produceSimilarityMatrix_double(int[] isZero,
-			int[][] trans_pref) {
-		double[] item1;
-		double[] item2;
-/*		item1 = new double[PREFROWCOUNT];
-		item2 = new double[PREFROWCOUNT];*/
-
-		double[][] similarityMatrix = new double[COLUMNCOUNT][COLUMNCOUNT];
-		for (int i = 0; i < COLUMNCOUNT; i++) {
+/**
+ * produce Similarity Matrix(double)
+ * @param isZero
+ * @param trans_pref
+ * @return 
+ */
+	private double[][] produceSimilarityMatrix_double(int[] isZero,int[][] trans_pref) {
+		int matrixSize = trans_pref.length;
+		double[][] similarityMatrix = new double[matrixSize][matrixSize];
+		
+		for (int i = 0; i < matrixSize; i++) {
 			for (int j = 0; j <= i; j++) {
-
 				if (i == j) {
 					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
 				} else if ((isZero[i] == 1) || (isZero[j] == 1)) {
 					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
 				} else {
-					// 将两个商品的列元素赋值到两个数组里面
-/*					for (int k = 0; k < PREFROWCOUNT; k++) {
-						item1[k] = preference[k][i];
-						item2[k] = preference[k][j];
-					}*/
-					// System.out.println("item1"+Arrays.toString(item1)+"item2"+Arrays.toString(item2));
-					similarityMatrix[i][j] = similarityMatrix[j][i] = computeSimilarity(trans_pref[i],trans_pref[j]);
-					//similarityMatrix[i][j] = similarityMatrix[j][i] = computeSimilarity(item1, item2);
-				}
-				
-/*				 System.out.println("similarityMatrix[" + i + "][" + j + "]  "
-				 + similarityMatrix[i][j]);*/
-			}
-		}
-		// for (int i = 0; i < similarityMatrix.length; i++) {
-		// for (int j = 0; j < similarityMatrix[0].length; j++) {
-		// System.out.print(similarityMatrix[i][j]);
-		// }
-		// System.out.println();
-		// }
-		// System.out.println("**********");
-		return similarityMatrix;
-	}
-
-	
-/*	private double[][] produceSimilarityMatrix_precision(int[] isZero,
-			int[][] trans_pref) {
-		double[] item1;
-		double[] item2;
-
-		double[][] similarityMatrix = new double[COLUMNCOUNT][COLUMNCOUNT];
-		for (int i = 0; i < COLUMNCOUNT; i++) {
-			for (int j = 0; j <= i; j++) {
-
-				if (i == j) {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
-				} else if ((isZero[i] == 1) || (isZero[j] == 1)) {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = 0;
-				} else {
-					similarityMatrix[i][j] = similarityMatrix[j][i] = computeSimilarity(trans_pref[i],trans_pref[j]);
+					similarityMatrix[i][j] = similarityMatrix[j][i] = computeSimilarity(trans_pref[i], trans_pref[j]);
 				}
 			}
 		}
 		return similarityMatrix;
-	}*/
-
-	/**
-	 * This method is used to get the preference which have minused the mean
-	 * score
-	 * 
-	 * @param score
-	 * @param i
-	 * @param similarityMatrix
-	 * @return
-	 */
-	private double[][] minus_mean(int[][] a,int[][] a_tran) {
-		double[][] b = new double[a.length][a[0].length];
-		for (int i = 0; i < b[0].length; i++) {
-			double mean_col = item_means(a_tran[i]);
-			// if (i<10) {
-			// System.out.println("the meanrow is " + mean_row);
-			// }
-			for (int j = 0; j < b.length; j++) {
-				if (a[j][i] ==0) {
-					b[j][i] = 0;
-				}else {
-					b[j][i] = a[j][i] - mean_col;
-				}
-			}
-			
-		}
-		return b;
 	}
 
 	/**
@@ -319,93 +209,29 @@ public class Recommendation {
 	 * @param similarityMatrix
 	 * @return
 	 */
-	private List<Integer> findKNeighbors(int[] score, int i,
-			double[][] similarityMatrix) { // 该方法有三个参数，score表示某一用户对所有项目的评分；i表示某个项目的序号
+	private List<Integer> findKNeighbors(int i,double[][] similarityMatrix) { // 该方法有三个参数，score表示某一用户对所有项目的评分；i表示某个项目的序号
 		List<Integer> neighborSerial = new ArrayList<Integer>();
 		double[] similarity = new double[similarityMatrix.length];
 		for (int j = 0; j < similarityMatrix.length; j++) {
-//			if (score[j] != 0) {
-				similarity[j] = similarityMatrix[j][i];
-/*		} else {
-				similarity[j] = 0;
-			}*/
+			similarity[j] = similarityMatrix[j][i];
 		}
 		double[] temp = new double[similarity.length];
 		for (int j = 0; j < temp.length; j++) {
 			temp[j] = similarity[j];
 		}
 		Arrays.sort(temp);
-/*		for (int j = 0; j < similarity.length; j++) {
-			for (int m = temp.length - 1; m >= temp.length - KNEIGHBOUR; m--) {
-				if (similarity[j] == temp[m] && similarity[j] != 0.0)
-					neighborSerial.add(new Integer(j));
-			}
-		}*/
-		//2015.04.15 之前常用的
-/*		for (int m = temp.length - 1; m >= temp.length - KNEIGHBOUR; m--) {
-			for (int j = 0; j < similarity.length; j++) {
-				if (similarity[j] == temp[m] && similarity[j] != 0.0) {
-					neighborSerial.add(new Integer(j));
-					break;
-				}
-			}
-		}*/
+
 		for (int m = temp.length - 1; m >= temp.length - KNEIGHBOUR; m--) {
 			for (int j = 0; j < similarity.length; j++) {
-				if (similarity[j] == temp[m]&& j != i ) {
+				if (similarity[j] == temp[m] && j != i) {
 					neighborSerial.add(new Integer(j));
 					break;
 				}
 			}
 		}
-		
 		return neighborSerial;
 	}
 
-	/**
-	 * This method is used to produce similarity matrix among items
-	 * 
-	 * @param preference
-	 * @return
-	 */
-	// private double[][] produceSimilarityMatrix(int[][] preference) {
-	//
-	// int[] item1;
-	// int[] item2;
-	// item1 = new int[PREFROWCOUNT];
-	// item2 = new int[PREFROWCOUNT];
-	//
-	// double[][] similarityMatrix = new double[COLUMNCOUNT][COLUMNCOUNT];
-	// for (int i = 0; i < COLUMNCOUNT; i++) {
-	// for (int j = 0; j < COLUMNCOUNT; j++) {
-	// if (i == j) {
-	// similarityMatrix[i][j] = 0;
-	// }
-	// else {
-	// //将两个商品的列元素赋值到两个数组里面
-	// for(int k=0;k<PREFROWCOUNT;k++){
-	// item1[k]=preference[k][i];
-	// item2[k]=preference[k][j];
-	// }
-	// //
-	// System.out.println("item1"+Arrays.toString(item1)+"item2"+Arrays.toString(item2));
-	// similarityMatrix[i][j] = similarityMatrix[j][i]=computeSimilarity(item1,
-	// item2);
-	//
-	// }
-	// System.out.println("similarityMatrix["+i+"]["+j+"]  "+similarityMatrix[i][j]);
-	// }
-	// }
-	// for (int i = 0; i < similarityMatrix.length; i++) {
-	// for (int j = 0; j < similarityMatrix[0].length; j++) {
-	// System.out.print(similarityMatrix[i][j]);
-	// }
-	// System.out.println();
-	// }
-	// System.out.println("**********");
-	// return similarityMatrix;
-	// }
-	//
 	/**
 	 * This method is used to compute similarity between two items
 	 * 
@@ -413,68 +239,54 @@ public class Recommendation {
 	 * @param item2
 	 * @return Correlation
 	 */
-	private double computeSimilarity(double[] item1, double[] item2) {
-		List<Double> list1 = new ArrayList<Double>();
-		List<Double> list2 = new ArrayList<Double>();
-		int j = 0;
-		for (int i = 0; i < item1.length; i++) {
-			if (item1[i] != 0 || item2[i] != 0) { //&&
-				list1.add(new Double(item1[i]));
-				list2.add(new Double(item2[i]));
-			}
-			j++;
-		}
-		// System.out.println(list1+"  "+list2);
-		return pearsonCorrelation(list1, list2);
-	}
 	private double computeSimilarity(int[] item1, int[] item2) {
 		List<Double> list1 = new ArrayList<Double>();
 		List<Double> list2 = new ArrayList<Double>();
-		int j = 0;
 		for (int i = 0; i < item1.length; i++) {
-			if (item1[i] != 0 || item2[i] != 0) { //&&
+			if (item1[i] != 0 || item2[i] != 0) {
 				list1.add(new Double(item1[i]));
 				list2.add(new Double(item2[i]));
 			}
-			j++;
 		}
-		// System.out.println(list1+"  "+list2);
 		return pearsonCorrelation(list1, list2);
 	}
-	
+
 	/**
 	 * get the transposition of a matrix
+	 * 
 	 * @param preference a matrix
 	 * @return transposition matrix
 	 */
-		public int[][] transpose_matrix (int[][] preference){
-			int a[][] = new int[preference[0].length][preference.length];
-			for(int i=0;i<preference.length;i++){
-				for (int j = 0; j < preference[0].length; j++) {
-					a[j][i] = preference[i][j];
-				}
+	public int[][] transpose_matrix(int[][] preference) {
+		int a[][] = new int[preference[0].length][preference.length];
+		for (int i = 0; i < a.length; i++) {
+			for (int j = 0; j < a[0].length; j++) {
+				a[i][j] = preference[j][i];
 			}
-			return a;
 		}
-		public double[][] transpose_matrix (double[][] preference){
-			double a[][] = new double[preference[0].length][preference.length];
-			for(int i=0;i<preference.length;i++){
-				for (int j = 0; j < preference[0].length; j++) {
-					a[j][i] = preference[i][j];
-				}
+		return a;
+	}
+
+	public double[][] transpose_matrix(double[][] preference) {
+		double a[][] = new double[preference[0].length][preference.length];
+		for (int i = 0; i < a.length; i++) {
+			for (int j = 0; j < a[0].length; j++) {
+				a[i][j] = preference[j][i];
 			}
-			return a;
 		}
+		return a;
+	}
 
 	/**
 	 * This method is used to read file and store file data into arrays
 	 * 
 	 * @param rowCount
+	 * @param colCount
 	 * @param fileName
-	 * @return
+	 * @return int[][] preference
 	 */
-	private int[][] readFile(int rowCount, String fileName) {
-		int[][] preference = new int[rowCount][COLUMNCOUNT];
+	private int[][] readFile(int rowCount,int colCount,String fileName) {
+		int[][] preference = new int[rowCount][colCount];
 
 		for (int i = 0; i < preference.length; i++) {
 			for (int j = 0; j < preference[0].length; j++) {
@@ -487,19 +299,12 @@ public class Recommendation {
 			FileReader fr = new FileReader(file);
 			BufferedReader br = new BufferedReader(fr);
 			String line = "";
-			int i = 0;
 			while (br.ready()) {
 				line = br.readLine();
 				String[] data = line.split("\t");
-				// System.out.println(Arrays.toString(data));
-				// if (data[0].equals("917")) {
-				// System.out.println(Arrays.toString(data));
-				// }
-				//System.out.println(data[0]+" "+data[1]+COLUMNCOUNT);
-				preference[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = 1;
-				// preference[0][0] = Integer.parseInt(data[2]);
-				// System.out.println(Arrays.deepToString(preference));
-
+				if (Double.parseDouble(data[2]) >= 3) {
+					preference[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = 1;
+				}
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -509,91 +314,18 @@ public class Recommendation {
 		return preference;
 	}
 
-	private double[][] readFileDouble(int rowCount, String fileName) {
-		double[][] preference = new double[rowCount][COLUMNCOUNT];
-
-		for (int i = 0; i < preference.length; i++) {
-			for (int j = 0; j < preference[0].length; j++) {
-				preference[i][j] = 0;
-			}
-		}
-
-		try {
-			File file = new File(fileName);
-			FileReader fr = new FileReader(file);
-			BufferedReader br = new BufferedReader(fr);
-			String line = "";
-			int i = 0;
-			while (br.ready()) {
-				line = br.readLine();
-				String[] data = line.split("::");
-				// System.out.println(Arrays.toString(data));
-				// if (data[0].equals("917")) {
-				// System.out.println(Arrays.toString(data));
-				// }
-				//System.out.println(data[0]+" "+data[1]+COLUMNCOUNT);
-				preference[Integer.parseInt(data[0]) - 1][Integer.parseInt(data[1]) - 1] = Double.parseDouble(data[2]);
-				// preference[0][0] = Integer.parseInt(data[2]);
-				// System.out.println(Arrays.deepToString(preference));
-
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return preference;
-	}
 	/**
-	 * This method is used to compute item mean score by Gavin Liu uestc
-	 * 
-	 * @param a
-	 * @return mean score
-	 */
-	private double item_means(int[] a) {
-		int count = 0;
-		int sum = 0;
-		for (int i = 0; i < a.length; i++) {
-			sum += a[i];
-			if (a[i] != 0) {
-				count++;
-			}
-		}
-
-		double means;
-		if (count == 0) {
-			means = 0;
-		} else {
-			means = (double) sum / (double) count;
-		}
-
-		// System.out.println("sum"+sum+"count"+count+"mean"+means);
-		return means;
-	}
-
-	/**
-	 * This method is used to compute Pearson Correlation between two items
+	 * This method is used to compute cosine Correlation between two items
 	 * 
 	 * @param a
 	 * @param b
 	 * @return Correlation
 	 */
 	private double pearsonCorrelation(List<Double> a, List<Double> b) {
-
-		/*
-		 * Preson相似度 int num = a.size(); int sum_prefOne = 0; int sum_prefTwo
-		 * = 0; int sum_squareOne = 0; int sum_squareTwo = 0; int sum_product =
-		 * 0; for (int i = 0; i < num; i++) { sum_prefOne += a.get(i);
-		 * sum_prefTwo += b.get(i); sum_squareOne += Math.pow(a.get(i), 2);
-		 * sum_squareTwo += Math.pow(b.get(i), 2); sum_product += a.get(i) *
-		 * b.get(i); } double sum = num * sum_product - sum_prefOne *
-		 * sum_prefTwo; double den = Math.sqrt((num * sum_squareOne -
-		 * Math.pow(sum_squareOne, 2)) * (num * sum_squareTwo -
-		 * Math.pow(sum_squareTwo, 2))); double result = sum / den;
-		 */
-
-		// 余弦相似度
-
+		if (a.size() != b.size()) {
+			System.err.println("pearsonCorrelation: The a.size is not equal with b.size! ");
+		}
+		
 		int num = a.size();
 		double sum_dot = 0;
 		double sum_a_sqrt = 0;
@@ -604,11 +336,7 @@ public class Recommendation {
 			sum_a_sqrt += a.get(i) * a.get(i);
 			sum_b_sqrt += b.get(i) * b.get(i);
 		}
-
 		sum_pro = Math.sqrt(sum_a_sqrt) * Math.sqrt(sum_b_sqrt);
-		// System.out.println(sum_a_sqrt + " " + sum_b_sqrt + " " + sum_dot +
-		// " "
-		// + sum_pro);
 		double result;
 		if (sum_pro != 0) {
 			result = sum_dot / sum_pro;
@@ -617,12 +345,20 @@ public class Recommendation {
 		}
 		return result;
 	}
-
-	public Recommendation(int n, String sourcepath,String resultpath,String listPath,int COLUMNCOUNT,int PREFROWCOUNT) {
-		generateRecommendations(n, sourcepath,resultpath,listPath,COLUMNCOUNT,PREFROWCOUNT);
-	}
-	/*
-	 * public static void main(String[] args) { Recommendation application = new
-	 * Recommendation(); application.generateRecommendations(); }
+	/**
+	 * return the result of recommendation
+	 * @return double[][] result
 	 */
+	public double[][] getResult(){
+		return result;
+	}
+	/**
+	 * return the train data of recommendation
+	 * @return int[][] preference
+	 */
+	public int[][] getPreference(){
+		return preference;
+	}
+
+
 }
