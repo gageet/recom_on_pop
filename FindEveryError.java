@@ -24,11 +24,11 @@ public class FindEveryError {
 			case 2:recentSize = "last30";break;
 			case 3:recentSize = "last60";break;
 			case 4:recentSize = "last90";break;
-			default:recentSize = "temp";break;
+			default:recentSize = "origin";break;
 			}
 
 			outputpath = COM_PATH+recentSize+"/";
-			judgepath = COM_PATH + "u2.test";
+			judgepath = COM_PATH + "uPre_timeAcd2592000.txt";
 			listSize = 10;
 
 			int j = 0;
@@ -40,13 +40,13 @@ public class FindEveryError {
 
 			for (int i = 50; i <= 50; i = i + 50) {
 				long startTime = System.currentTimeMillis();
-				trainpath = COM_PATH +"u2.base";
+				trainpath = COM_PATH +"uUse_timeAcd2592000.txt";
 				sourcepath = trainpath;
 				resultpath = outputpath + "Result_of_" + i + "top.txt";
 
      			Recommendation recommendation = new Recommendation(i,sourcepath, resultpath, COLUMNCOUNT,PREFROWCOUNT);
-     			coutArray(recommendation.getResult(), "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/result.txt");
-     			coutArray(recommendation.getPreference(), "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/Preference.txt");
+/*     			coutArray(recommendation.getResult(), "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/result.txt");
+     			coutArray(recommendation.getPreference(), "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/Preference.txt");*/
 				Accuracy accuracy = new Accuracy(judgepath, recommendation.getResult(),recommendation.getPreference(), listSize, COLUMNCOUNT, PREFROWCOUNT);
 				precision[j] = accuracy.getPrecision();
 				recall[j] = accuracy.getRecall();
@@ -59,7 +59,7 @@ public class FindEveryError {
 				System.out.println("RecListSize " + id + "'s TOP " + i + " have used£º" + (endTime - startTime) + "ms");
 			}
 
-			/*File file = new File(outputpath + "EvaluationResult.txt");
+			File file = new File(outputpath + "EvaluationResult.txt");
 			FileWriter fileWriter = null;
 			try {
 				fileWriter = new FileWriter(file);
@@ -84,7 +84,7 @@ public class FindEveryError {
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}*/
+			}
 
 			System.out.println("The " + id + "th data has been processed");
 

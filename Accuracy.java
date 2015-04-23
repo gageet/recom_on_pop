@@ -63,7 +63,7 @@ public class Accuracy {
 		coutArrayMatrix(testMatrix,  "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/temp/test_matrix.txt");
 		trainMatrix = fromIntToDouble(train);
 		trueUser = calculateUserNum(trainMatrix,testMatrix,prefrowcount2);
-		itemRatedNum = findTheRatedNum(trainMatrix);
+		itemRatedNum = findTheRatedNum(trainMatrix,trueUser);
 		
 		System.out.println("userNum:"+userNum);
 		this.precision = calculatePrecision(trainMatrix,testMatrix,mineMatrix,userNum,trueUser,listSize);
@@ -162,7 +162,7 @@ public class Accuracy {
 				double sibn_each = 0.0;
 				double sibn_each_sum = 0.0;
 				for (int k = 0; k < minematrix[0].length; k++) {
-					if (minematrix[i][k] != 0.0) {
+					if ((minematrix[i][k] != 0.0)&&(itemRatedNum[k]!=0)) {
 						sibn_each_sum = log2N(userNum/((double)itemRatedNum[k])) + sibn_each_sum;
 					}
 				}
@@ -279,11 +279,11 @@ public class Accuracy {
 		return Math.log(d)/Math.log(2);
 	}
 
-	private int[] findTheRatedNum(double[][] trainmatrix) {
+	private int[] findTheRatedNum(double[][] trainmatrix, int[] trueUser) {
 		int[] a = new int[COLUMNCOUNT];
 		for (int i = 0; i < COLUMNCOUNT; i++) {
 			for (int j = 0; j < PREFROWCOUNT; j++) {
-				if (trainmatrix[j][i]!= 0.0) {
+				if ((trainmatrix[j][i]!= 0.0)&&(trueUser[j] == 1)) {
 					a[i] = a[i]+1;
 				}
 			}
