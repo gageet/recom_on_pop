@@ -137,7 +137,7 @@ public class Accuracy {
 				double esibn_each = 0.0;
 				double esibn_each_sum = 0.0;
 				for (int k = 0; k < minematrix[0].length; k++) {
-					if ((minematrix[i][k] != 0.0)&&(testmatrix[i][k]!= 0.0)) {
+					if ((minematrix[i][k] != 0.0)&&(testmatrix[i][k]!= 0.0)&&(itemRatedNum[k]!=0)) {
 						esibn_each_sum = log2N(userNum/((double)itemRatedNum[k])) + esibn_each_sum;
 					}
 				}

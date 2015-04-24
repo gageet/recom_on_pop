@@ -18,16 +18,16 @@ public class FindEveryError {
 	public static final String COM_PATH = "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/";
 	
 	public static void main(String[] args) {
-		for (int id = 1; id <= 4; id++) {
-			switch (id) {
+		for (int id = 4; id <= 4; id++) {
+/*			switch (id) {
 			case 1:recentSize = "all";break;
 			case 2:recentSize = "last30";break;
 			case 3:recentSize = "last60";break;
 			case 4:recentSize = "last90";break;
 			default:recentSize = "origin";break;
-			}
+			}*/
 
-			outputpath = COM_PATH+recentSize+"/";
+			outputpath = COM_PATH+id+"/";
 			judgepath = COM_PATH + "uPre_timeAcd2592000.txt";
 			listSize = 10;
 
@@ -41,7 +41,7 @@ public class FindEveryError {
 			for (int i = 50; i <= 800; i = i + 50) {
 				long startTime = System.currentTimeMillis();
 				trainpath = COM_PATH +"uUse_timeAcd2592000.txt";
-				sourcepath = COM_PATH+recentSize+"/uUse_Item_"+i+"top.txt";
+				sourcepath = COM_PATH+id+"/uUse_Item_"+i+"top.txt";
 				resultpath = outputpath + "Result_of_" + i + "top.txt";
 
      			Recommendation recommendation = new Recommendation(i,sourcepath, resultpath, COLUMNCOUNT,PREFROWCOUNT);
