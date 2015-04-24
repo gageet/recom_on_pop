@@ -24,8 +24,8 @@ public class Devide2TopPop {
 	public static final String COM_PATH = "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/";
 
 	public static void main(String[] args) {
-		for (int id = 1; id <= 6; id = id + 1) {
-/*			switch (id) {
+		for (int id = 1; id <= 4; id = id + 1) {
+			switch (id) {
 			case 1:
 				recentSize = "all";
 				break;
@@ -40,11 +40,11 @@ public class Devide2TopPop {
 				break;
 			default:
 				break;
-			}*/
+			}
 
-			PopfileName = COM_PATH + "origin/Pop_of_"+id+"recListSize_popAcd.txt";
+			PopfileName = COM_PATH + "origin/Use_"+recentSize+"_trend.txt";
 			ChoosefileName = COM_PATH  + "uUse_ItemAcd2592000.txt";
-			path = COM_PATH + id+"/";
+			path = COM_PATH + recentSize+"/";
 			
 			for (int i = 50; i <= 800; i = i + 50) {
 				ChooseTopN ctn = new ChooseTopN(i, PopfileName, ChoosefileName,path);

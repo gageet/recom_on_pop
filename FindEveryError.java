@@ -18,7 +18,7 @@ public class FindEveryError {
 	public static final String COM_PATH = "E:/doc/lab/dataset/recommending/movielens-100k/forcastPopByRecom/";
 	
 	public static void main(String[] args) {
-		for (int id = 0; id <= 0; id++) {
+		for (int id = 1; id <= 4; id++) {
 			switch (id) {
 			case 1:recentSize = "all";break;
 			case 2:recentSize = "last30";break;
@@ -38,10 +38,10 @@ public class FindEveryError {
 			double[] sibn = new double[16];
 			double[] esibn = new double[16];
 
-			for (int i = 50; i <= 50; i = i + 50) {
+			for (int i = 50; i <= 800; i = i + 50) {
 				long startTime = System.currentTimeMillis();
 				trainpath = COM_PATH +"uUse_timeAcd2592000.txt";
-				sourcepath = trainpath;
+				sourcepath = COM_PATH+recentSize+"/uUse_Item_"+i+"top.txt";
 				resultpath = outputpath + "Result_of_" + i + "top.txt";
 
      			Recommendation recommendation = new Recommendation(i,sourcepath, resultpath, COLUMNCOUNT,PREFROWCOUNT);
